@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+	"strings"
+	"time"
+
 	"github.com/WagnerJust/go-gator/internal/config"
 	"github.com/WagnerJust/go-gator/internal/database"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
-	"time"
 )
 
 type state struct {
@@ -81,6 +83,26 @@ func handleResetDatabase(s *state, cmd command) error {
 	return nil
 }
 
+func handleGetAllUsers(s *state, cmd command) error {
+
+	if len(cmd.Args) != 0 {
+		return fmt.Errorf("`users` must be run without arguments")
+	}
+
+	users, err := s.Db.GetAllUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, user := range users {
+		phrase := "* " + strings.ToLower(user.Name)
+		if strings.EqualFold(user.Name, s.Config.CurrentUserName) {
+			phrase += " (current)"
+		}
+		fmt.Println(phrase)
+	}
+	return nil
+}
 type commands struct {
 	CmdRegister map[string]func(*state, command) error
 }
@@ -126,6 +148,7 @@ func CliLoop () {
 	commands.register("print", handlerPrintConfig)
 	commands.register("register", handlerRegisterUser)
 	commands.register("reset", handleResetDatabase)
+	commands.register("users", handleGetAllUsers)
 
 	args := os.Args
 	if len(args) < 2 {
