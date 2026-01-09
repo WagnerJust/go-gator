@@ -103,6 +103,52 @@ func handleGetAllUsers(s *state, cmd command) error {
 	}
 	return nil
 }
+
+func handleAddFeed (s *state, cmd command) error {
+	if len(cmd.Args) != 2 {
+		return fmt.Errorf("`addFeed` should be called like: `addfeed {name} {url}`")
+	}
+
+	currentUser, err := s.Db.GetUserByName(context.Background(), s.Config.CurrentUserName)
+	if err != nil {
+		return err
+	}
+
+	feedParams := database.CreateFeedParams{
+		ID: uuid.New(),
+		Name: cmd.Args[0],
+		Url: cmd.Args[1],
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+		UserID: currentUser.ID,
+	}
+	entry, err := s.Db.CreateFeed(context.Background(),feedParams)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(entry)
+
+	return nil
+}
+
+func handleGetAllFeeds (s *state, cmd command) error {
+	if len(cmd.Args) != 0 {
+		return fmt.Errorf("`feeds` does not take any arguments")
+	}
+
+	feeds, err := s.Db.GetAllFeedsWithUsers(context.Background())
+	if err != nil {
+		return err
+	}
+
+	for _, feed := range feeds {
+		fmt.Printf("name: %s\n\turl: %s\n\tuser: %s\n", feed.Name, feed.Url, feed.UserName)
+	}
+	return nil
+}
+
+
 type commands struct {
 	CmdRegister map[string]func(*state, command) error
 }
@@ -149,6 +195,8 @@ func CliLoop () {
 	commands.register("register", handlerRegisterUser)
 	commands.register("reset", handleResetDatabase)
 	commands.register("users", handleGetAllUsers)
+	commands.register("addfeed", handleAddFeed)
+	commands.register("feeds", handleGetAllFeeds)
 
 	args := os.Args
 	if len(args) < 2 {
