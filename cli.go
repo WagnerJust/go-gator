@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+
 	"github.com/WagnerJust/go-gator/internal/config"
 	"github.com/WagnerJust/go-gator/internal/database"
 	_ "github.com/lib/pq"
@@ -62,7 +63,8 @@ func CliLoop () {
 	commands.register("addfeed", middlewareLoggedIn(handlerAddFeed))
 	commands.register("feeds", handlerGetAllFeeds)
 	commands.register("follow", middlewareLoggedIn(handlerFollowFeed))
-	commands.register("following",middlewareLoggedIn(handlerGetFollowing))
+	commands.register("following", middlewareLoggedIn(handlerGetFollowing))
+	commands.register("unfollow", middlewareLoggedIn(handlerUnfollowFeed))
 
 	args := os.Args
 	if len(args) < 2 {

@@ -189,9 +189,32 @@ func handlerGetFollowing (s *state, cmd Command, user database.User) error {
 	if err != nil {
 		return err
 	}
+	if len(feedFollows) == 0 {
+		fmt.Println("You are not following any feeds")
+		return nil
+	}
 	fmt.Println("You are following these feeds:")
 	for _, feed := range feedFollows {
 		fmt.Printf("\t- %s\n", feed.FeedName)
+	}
+	return nil
+}
+
+func handlerUnfollowFeed(s *state, cmd Command, user database.User) error {
+	if len(cmd.Args) != 1 {
+		return  fmt.Errorf("usage: unfollow <url>")
+	}
+	feed, err := s.Db.GetFeedByUrl(context.Background(), cmd.Args[0])
+	if err != nil {
+		return err
+	}
+	params := database.DeleteFeedFollowByUserParams{
+		UserID: user.ID,
+		FeedID: feed.ID,
+	}
+	err = s.Db.DeleteFeedFollowByUser(context.Background(),params)
+	if err != nil {
+		return err
 	}
 	return nil
 }
