@@ -14,7 +14,7 @@ type Command struct {
 	Args []string
 }
 
-func MiddlewareLoggedIn(handler func(s *state, cmd Command, user database.User) error) func(*state, Command) error {
+func middlewareLoggedIn(handler func(s *state, cmd Command, user database.User) error) func(*state, Command) error {
 	return func(s *state, cmd Command) error {
 		user, err := s.Db.GetUserByName(context.Background(), s.Config.CurrentUserName)
 		if err != nil {
@@ -24,7 +24,7 @@ func MiddlewareLoggedIn(handler func(s *state, cmd Command, user database.User) 
 	}
 }
 
-func HandlerLogin(s *state, cmd Command) error {
+func handlerLogin(s *state, cmd Command) error {
 	if len(cmd.Args) != 1 {
 		return fmt.Errorf("usage: login <username>")
 	}
@@ -40,7 +40,7 @@ func HandlerLogin(s *state, cmd Command) error {
 	return nil
 }
 
-func HandlerPrintConfig(s *state, cmd Command) error {
+func handlerPrintConfig(s *state, cmd Command) error {
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("usage: config")
 	}
@@ -48,7 +48,7 @@ func HandlerPrintConfig(s *state, cmd Command) error {
 	return nil
 }
 
-func HandlerRegisterUser (s *state, cmd Command) error {
+func handlerRegisterUser (s *state, cmd Command) error {
 	if len(cmd.Args) != 1 {
 		return fmt.Errorf("usage: register <username>")
 	}
@@ -69,7 +69,7 @@ func HandlerRegisterUser (s *state, cmd Command) error {
 	return nil
 }
 
-func HandlerResetDatabase(s *state, cmd Command) error {
+func handlerResetDatabase(s *state, cmd Command) error {
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("usage: reset")
 	}
@@ -82,7 +82,7 @@ func HandlerResetDatabase(s *state, cmd Command) error {
 	return nil
 }
 
-func HandlerGetAllUsers(s *state, cmd Command) error {
+func handlerGetAllUsers(s *state, cmd Command) error {
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("usage: users")
 	}
@@ -102,7 +102,7 @@ func HandlerGetAllUsers(s *state, cmd Command) error {
 	return nil
 }
 
-func HandlerAddFeed (s *state, cmd Command, user database.User) error {
+func handlerAddFeed (s *state, cmd Command, user database.User) error {
 	if len(cmd.Args) != 2 {
 		return fmt.Errorf("usage: addfeed <name> <url>")
 	}
@@ -137,7 +137,7 @@ func HandlerAddFeed (s *state, cmd Command, user database.User) error {
 	return nil
 }
 
-func HandlerGetAllFeeds (s *state, cmd Command) error {
+func handlerGetAllFeeds (s *state, cmd Command) error {
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("usage: feeds")
 	}
@@ -153,7 +153,7 @@ func HandlerGetAllFeeds (s *state, cmd Command) error {
 	return nil
 }
 
-func HandlerFollowFeed (s *state, cmd Command, user database.User) error {
+func handlerFollowFeed (s *state, cmd Command, user database.User) error {
 	if len(cmd.Args) != 1 {
 		return fmt.Errorf("usage: follow <url>")
 	}
@@ -180,7 +180,7 @@ func HandlerFollowFeed (s *state, cmd Command, user database.User) error {
 	return nil
 }
 
-func HandlerGetFollowing (s *state, cmd Command, user database.User) error {
+func handlerGetFollowing (s *state, cmd Command, user database.User) error {
 	if len(cmd.Args) != 0 {
 		return fmt.Errorf("usage: following")
 	}

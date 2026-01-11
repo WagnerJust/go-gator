@@ -54,15 +54,15 @@ func CliLoop () {
 		CmdRegister: make(map[string]func(*state, Command) error),
 	}
 
-	commands.register("login", HandlerLogin)
-	commands.register("print", HandlerPrintConfig)
-	commands.register("register", HandlerRegisterUser)
-	commands.register("reset", HandlerResetDatabase)
-	commands.register("users", HandlerGetAllUsers)
-	commands.register("addfeed", MiddlewareLoggedIn(HandlerAddFeed))
-	commands.register("feeds", HandlerGetAllFeeds)
-	commands.register("follow", MiddlewareLoggedIn(HandlerFollowFeed))
-	commands.register("following",MiddlewareLoggedIn(HandlerGetFollowing))
+	commands.register("login", handlerLogin)
+	commands.register("print", handlerPrintConfig)
+	commands.register("register", handlerRegisterUser)
+	commands.register("reset", handlerResetDatabase)
+	commands.register("users", handlerGetAllUsers)
+	commands.register("addfeed", middlewareLoggedIn(handlerAddFeed))
+	commands.register("feeds", handlerGetAllFeeds)
+	commands.register("follow", middlewareLoggedIn(handlerFollowFeed))
+	commands.register("following",middlewareLoggedIn(handlerGetFollowing))
 
 	args := os.Args
 	if len(args) < 2 {
