@@ -1,10 +1,15 @@
 package main
+
 import (
 	"context"
+	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
+
 	"github.com/WagnerJust/go-gator/internal/database"
+	"github.com/WagnerJust/go-gator/internal/rss"
 	"github.com/google/uuid"
 	_ "github.com/lib/pq"
 )
@@ -13,6 +18,14 @@ type Command struct {
 	Name string
 	Args []string
 }
+
+func stringPtrToNullString(s *string) sql.NullString {
+    if s == nil {
+        return sql.NullString{Valid: false}
+    }
+    return sql.NullString{String: *s, Valid: true}
+}
+
 
 func middlewareLoggedIn(handler func(s *state, cmd Command, user database.User) error) func(*state, Command) error {
 	return func(s *state, cmd Command) error {
@@ -216,5 +229,180 @@ func handlerUnfollowFeed(s *state, cmd Command, user database.User) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+
+func handlerScrapeFeeds ( s *state, cmd Command) error {
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("usage: agg <duration_string>");
+	}
+	timeBetweenReqs, err := time.ParseDuration(cmd.Args[0])
+	if err != nil {
+		return err
+	}
+	fmt.Println("Collecting feeds every ", timeBetweenReqs.String())
+	ticker := time.NewTicker(timeBetweenReqs)
+	defer ticker.Stop()
+	for ; ; <-ticker.C {
+		fmt.Println("Checking...")
+		feed, err := s.Db.GetNextFeedToFetch(context.Background())
+		if err != nil {
+			return err
+		}
+		err = s.Db.MarkFeedFetched(context.Background(), feed.ID)
+		if err != nil {
+			return err
+		}
+
+		fetchedFeed, err := rss.FetchFeed(context.Background(), feed.Url)
+		if err != nil {
+			return err
+		}
+		postsCreated := 0
+		for _, item := range fetchedFeed.Channel.Item {
+
+			pubDate, err := time.Parse(time.RFC1123Z, item.PubDate)
+			if err != nil {
+				fmt.Printf("Could not parse publication date for '%s': %v\n", item.Title, err)
+				continue
+			}
+			postParams := database.CreatePostParams{
+				ID: uuid.New(),
+				CreatedAt: time.Now(),
+				UpdatedAt: time.Now(),
+				PublishedAt: pubDate,
+				Title: item.Title,
+				Url: item.Link,
+				Description: stringPtrToNullString(item.Description),
+				FeedID: feed.ID,
+			}
+			_, err = s.Db.CreatePost(context.Background(), postParams)
+			if err != nil {
+				if strings.Contains(err.Error(), "duplicate key value") {
+					continue
+				}
+				fmt.Printf("Error creating post: %v\n", err)
+				return err
+			}
+			postsCreated++
+		}
+		fmt.Printf("Feed %s collected, %v new posts found\n", feed.Name, postsCreated)
+	}
+}
+
+
+func handlerBrowsePosts( s *state, cmd Command, user database.User) error {
+	if len(cmd.Args) > 1 {
+		return fmt.Errorf("usage: browse <optional_limit_integer>")
+	}
+	limit := 2
+	var err error
+	if len(cmd.Args) == 1 {
+		limit, err = strconv.Atoi(cmd.Args[0])
+		if err != nil {
+			return err
+		}
+	}
+
+	params := database.GetPostsForUserParams{
+		UserID: user.ID,
+		Limit: int32(limit),
+	}
+	posts, err := s.Db.GetPostsForUser(context.Background(), params)
+	if err != nil {
+		return err
+	}
+	for _, post := range posts {
+		fmt.Printf("Title: %s\n", post.Title)
+		fmt.Printf("URL: %s\n", post.Url)
+		if post.Description.Valid {
+			fmt.Printf("Description: %s\n", post.Description.String)
+		}
+		fmt.Printf("Published: %s\n", post.PublishedAt.Format("2006-01-02 15:04:05"))
+		fmt.Println("================================================================================")
+	}
+	return nil
+}
+
+func handlerAggOne(s *state, cmd Command) error {
+	if len(cmd.Args) != 1 {
+		return fmt.Errorf("usage: aggone <feed_url>")
+	}
+
+	feed, err := s.Db.GetFeedByUrl(context.Background(), cmd.Args[0])
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Fetching feed: %s\n", feed.Name)
+	fmt.Printf("URL: %s\n", feed.Url)
+	fmt.Printf("Feed ID: %s\n", feed.ID)
+
+	err = s.Db.MarkFeedFetched(context.Background(), feed.ID)
+	if err != nil {
+		return err
+	}
+
+	fetchedFeed, err := rss.FetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("\nFetched RSS Feed: %s\n", fetchedFeed.Channel.Title)
+	fmt.Printf("Number of items: %d\n\n", len(fetchedFeed.Channel.Item))
+
+	postsCreated := 0
+	duplicates := 0
+	parseErrors := 0
+
+	for i, item := range fetchedFeed.Channel.Item {
+		pubDate, err := time.Parse(time.RFC1123Z, item.PubDate)
+		if err != nil {
+			// Try alternative date formats
+			pubDate, err = time.Parse(time.RFC1123, item.PubDate)
+			if err != nil {
+				// Try RFC3339
+				pubDate, err = time.Parse(time.RFC3339, item.PubDate)
+				if err != nil {
+					fmt.Printf("[%d] Could not parse date '%s' for: %s\n", i+1, item.PubDate, item.Title)
+					parseErrors++
+					continue
+				}
+			}
+		}
+
+		postParams := database.CreatePostParams{
+			ID:          uuid.New(),
+			CreatedAt:   time.Now(),
+			UpdatedAt:   time.Now(),
+			PublishedAt: pubDate,
+			Title:       item.Title,
+			Url: item.Link,
+			Description: stringPtrToNullString(item.Description),
+			FeedID:      feed.ID,
+		}
+		_, err = s.Db.CreatePost(context.Background(), postParams)
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key value") {
+				duplicates++
+				continue
+			}
+			fmt.Printf("Error creating post: %v\n", err)
+			return err
+		}
+		postsCreated++
+		if postsCreated <= 3 {
+			fmt.Printf("✓ Created: %s (published: %s)\n", item.Title, pubDate.Format("2006-01-02"))
+		}
+	}
+
+	fmt.Printf("\n=== Summary ===\n")
+	fmt.Printf("Feed: %s\n", feed.Name)
+	fmt.Printf("Total items: %d\n", len(fetchedFeed.Channel.Item))
+	fmt.Printf("New posts: %d\n", postsCreated)
+	fmt.Printf("Duplicates: %d\n", duplicates)
+	fmt.Printf("Parse errors: %d\n", parseErrors)
+
 	return nil
 }

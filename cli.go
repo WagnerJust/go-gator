@@ -65,6 +65,9 @@ func CliLoop () {
 	commands.register("follow", middlewareLoggedIn(handlerFollowFeed))
 	commands.register("following", middlewareLoggedIn(handlerGetFollowing))
 	commands.register("unfollow", middlewareLoggedIn(handlerUnfollowFeed))
+	commands.register("agg", handlerScrapeFeeds)
+	commands.register("aggone", handlerAggOne)
+	commands.register("browse", middlewareLoggedIn(handlerBrowsePosts))
 
 	args := os.Args
 	if len(args) < 2 {

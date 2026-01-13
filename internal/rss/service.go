@@ -9,11 +9,16 @@ import (
 )
 func (f *RSSFeed) cleanupUnescapedEntities () {
 	f.Channel.Title = html.UnescapeString(f.Channel.Title)
-	f.Channel.Description = html.UnescapeString(f.Channel.Description)
-
+	if f.Channel.Description != nil {
+		unescaped := html.UnescapeString(*f.Channel.Description)
+		f.Channel.Description = &unescaped
+	}
 	for index, item := range f.Channel.Item {
 		f.Channel.Item[index].Title = html.UnescapeString(item.Title)
-		f.Channel.Item[index].Description = html.UnescapeString(item.Description)
+		if item.Description != nil {
+			unescaped := html.UnescapeString(*item.Description)
+			f.Channel.Item[index].Description = &unescaped
+		}
 	}
 }
 

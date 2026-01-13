@@ -1,7 +1,7 @@
 -- +goose Up
 -- +goose StatementBegin
 SELECT 'up SQL query';
-CREATE TABLE feed_follows (
+CREATE TABLE IF NOT EXISTS feed_follows (
     id UUID NOT NULL,
     created_at TIMESTAMP NOT NULL,
     updated_at TIMESTAMP NOT NULL,
@@ -15,5 +15,5 @@ CREATE TABLE feed_follows (
 -- +goose Down
 -- +goose StatementBegin
 SELECT 'down SQL query';
-DROP TABLE feed_follows;
+DROP TABLE IF EXISTS feed_follows;
 -- +goose StatementEnd
